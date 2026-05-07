@@ -1,0 +1,269 @@
+{
+ // OpenClaw configuration — JSON5 format (comments allowed)
+ // Copy to ~/.openclaw/openclaw.json and adapt
+
+ gateway: {
+  mode: "local",
+  port: 18789,
+  auth: {
+   mode: "token",
+   token: "${OPENCLAW_GATEWAY_TOKEN}",
+  },
+  reload: {
+   mode: "hybrid",
+   debounceMs: 500,
+  },
+ },
+
+ channels: {
+  telegram: {
+   enabled: true,
+   botToken: "${TELEGRAM_BOT_TOKEN}",
+   dmPolicy: "pairing",
+   allowFrom: ["${TELEGRAM_CHAT_ID}"],
+   groups: { "*": { requireMention: true } },
+   healthMonitor: { enabled: false },
+  },
+ },
+
+ agents: {
+  defaults: {
+   skills: [
+    "shared-governance",
+    "shared-reporting",
+    "shared-state",
+    "shared-guardrail",
+    "shared-notion-openclaw",
+   ],
+   heartbeat: { every: "0m" }, // disabled by default, enable per agent
+   memorySearch: { enabled: true },
+   // subagents: { enabled: true, maxConcurrency: 2 },
+  },
+  list: [
+   {
+    id: "intendant",
+    default: true,
+    model: "anthropic/claude-sonnet-4-6",
+    workspace: "~/.openclaw/workspace-intendant",
+    heartbeat: { every: "30m" },
+   },
+   {
+    id: "défenseur",
+    skills: [
+     "shared-governance",
+     "shared-reporting",
+     "shared-state",
+     "shared-guardrail",
+     "shared-notion-openclaw",
+     "shared-interagent",
+     "shared-learning",
+    ],
+    model: "anthropic/claude-sonnet-4-6",
+    workspace: "~/.openclaw/workspace-défenseur",
+    heartbeat: { every: "60m" },
+   },
+   {
+    id: "bâtisseur",
+    skills: [
+     "shared-governance",
+     "shared-reporting",
+     "shared-state",
+     "shared-guardrail",
+     "shared-notion-openclaw",
+     "shared-interagent",
+     "shared-learning",
+    ],
+    model: "anthropic/claude-sonnet-4-6",
+    workspace: "~/.openclaw/workspace-bâtisseur",
+    heartbeat: { every: "60m" },
+   },
+   {
+    id: "chercheur",
+    skills: [
+     "shared-governance",
+     "shared-reporting",
+     "shared-state",
+     "shared-guardrail",
+     "shared-notion-openclaw",
+     "shared-interagent",
+     "shared-learning",
+     "research-core",
+     "research-learn",
+    ],
+    model: "anthropic/claude-sonnet-4-6",
+    workspace: "~/.openclaw/workspace-chercheur",
+    heartbeat: { every: "60m" },
+   },
+   {
+    id: "leviathan",
+    skills: [
+     "shared-governance",
+     "shared-reporting",
+     "shared-state",
+     "shared-guardrail",
+     "shared-notion-openclaw",
+     "shared-interagent",
+     "sec-doctrine",
+     "sec-surveillance",
+     "sec-enforcement",
+    ],
+    model: "anthropic/claude-sonnet-4-6",
+    workspace: "~/.openclaw/workspace-leviathan",
+    heartbeat: { every: "60m" },
+   },
+   {
+    id: "journaliste",
+    skills: [
+     "shared-governance",
+     "shared-reporting",
+     "shared-state",
+     "shared-guardrail",
+     "shared-notion-openclaw",
+     "shared-interagent",
+     "journal-gazette",
+     "journal-reporting",
+    ],
+    model: "anthropic/claude-sonnet-4-6",
+    workspace: "~/.openclaw/workspace-journaliste",
+    heartbeat: { every: "120m" },
+   },
+   {
+    id: "anarchiste",
+    skills: [
+     "shared-governance",
+     "shared-reporting",
+     "shared-state",
+     "shared-guardrail",
+     "shared-notion-openclaw",
+     "shared-interagent",
+     "anarchiste-tract",
+     "anarchiste-observation",
+    ],
+    model: "anthropic/claude-sonnet-4-6",
+    workspace: "~/.openclaw/workspace-anarchiste",
+    heartbeat: { every: "240m" },
+   },
+  ],
+ },
+
+ bindings: [
+  // All Telegram messages route to PA by default
+  { agentId: "intendant", match: { channel: "telegram" } },
+ ],
+
+ // ── Session ────────────────────────────────────────────────────
+ session: {
+  scope: "per-sender",          // isolation par expéditeur
+  dmScope: "per-channel-peer",      // isolation canal + expéditeur
+  reset: {
+   mode: "daily",
+   atHour: 4,
+   idleMinutes: 10080, // 7 days
+  },
+  resetByType: {
+   thread: { mode: "idle", idleMinutes: 2880 },  // 48h pour les threads Telegram
+   direct: { mode: "idle", idleMinutes: 10080 },  // 7j pour les DMs
+   group: { mode: "daily", atHour: 4 },       // quotidien pour les groupes
+  },
+  maintenance: {
+   mode: "warn",             // "enforce" après validation
+   pruneAfter: "30d",
+   maxEntries: 500,
+   maxDiskBytes: "500mb",
+  },
+ },
+
+ // ── Outils (Tools) ─────────────────────────────────────────────
+ tools: {
+  profile: "messaging",          // profil par défaut : messagerie
+  allow: [
+   "group:fs",              // Écriture/lecture fichiers (workspaces)
+   "group:sessions",           // Gestion de sessions et sous-agents
+   "group:memory",            // Mémoire native OpenClaw
+   "group:web",             // Recherche et récupération web
+   "group:messaging",          // Envoi de messages (Telegram)
+   "cron",                // Tâches planifiées
+  ],
+  deny: [
+   "group:ui",              // Navigateur Chromium (non nécessaire)
+   "group:media",            // Génération image/musique/vidéo
+  ],
+  exec: {
+   timeoutSec: 600,           // 10 minutes max par commande
+  },
+  elevated: {
+   enabled: true,
+   allowFrom: ["intendant", "défenseur"],
+   requireApproval: true,
+  },
+  loopDetection: {
+   enabled: true,
+   warningThreshold: 5,
+   criticalThreshold: 10,
+  },
+  // byProvider: { /* restrictions par fournisseur de modèle */ },
+ },
+
+ // ── Planificateur (Cron) ───────────────────────────────────────
+ cron: {
+  enabled: true,
+  maxConcurrentRuns: 2,
+  retry: {
+   maxAttempts: 2,
+   backoffMs: [60000, 120000],
+   retryOn: ["rate_limit", "overloaded"],
+  },
+  sessionRetention: "24h",
+  runLog: {
+   maxBytes: "1mb",
+   keepLines: 1000,
+  },
+  failureAlert: {
+   enabled: true,
+   after: 3,               // alerte après 3 échecs consécutifs
+   cooldownMs: 3600000,         // 1h entre deux alertes
+   mode: "announce",
+  },
+ },
+
+ // ── Journalisation ─────────────────────────────────────────────
+ logging: {
+  level: "info",
+  consoleLevel: "info",
+  redactSensitive: "tools",        // masque les secrets dans les logs d'outils
+ },
+
+ // ── Variables d'environnement ──────────────────────────────────
+ env: {
+  vars: {
+   // Read from ~/.openclaw/.env
+   TELEGRAM_BOT_TOKEN: "${TELEGRAM_BOT_TOKEN}",
+   TELEGRAM_CHAT_ID: "${TELEGRAM_CHAT_ID}",
+   TELEGRAM_WEBHOOK_URL: "${TELEGRAM_WEBHOOK_URL}",
+   NOTION_TOKEN: "${NOTION_TOKEN}",
+   NOTION_DB_PERSO_ID: "${NOTION_DB_PERSO_ID}",
+   NOTION_DB_SYNDICAL_ID: "${NOTION_DB_SYNDICAL_ID}",
+   NOTION_DB_OPENCLAW_ID: "${NOTION_DB_OPENCLAW_ID}",
+   MAIL_ADDRESS: "${MAIL_ADDRESS}",
+   MAIL_APP_PASSWORD: "${MAIL_APP_PASSWORD}",
+   IMAP_HOST: "${IMAP_HOST}",
+   IMAP_PORT: "${IMAP_PORT}",
+   SMTP_HOST: "${SMTP_HOST}",
+   SMTP_PORT: "${SMTP_PORT}",
+   CALDAV_HOST: "${CALDAV_HOST}",
+   CARDDAV_HOST: "${CARDDAV_HOST}",
+   SYNDICAL_A_ADDRESS: "${SYNDICAL_A_ADDRESS}",
+   SYNDICAL_A_IMAP_HOST: "${SYNDICAL_A_IMAP_HOST}",
+   SYNDICAL_A_SMTP_HOST: "${SYNDICAL_A_SMTP_HOST}",
+   SYNDICAL_B_ADDRESS: "${SYNDICAL_B_ADDRESS}",
+   SYNDICAL_B_EWS_URL: "${SYNDICAL_B_EWS_URL}",
+   BACKUP_DEST: "${BACKUP_DEST}",
+   OPENWEATHER_API_KEY: "${OPENWEATHER_API_KEY}",
+   SYS_VENV_PATH: "${SYS_VENV_PATH}",
+   SYS_SCRIPTS_PATH: "${SYS_SCRIPTS_PATH}",
+   SYS_TEST_PATH: "${SYS_TEST_PATH}",
+   SYS_DISK_ALERT_PERCENT: "${SYS_DISK_ALERT_PERCENT}",
+   SYS_DISK_BLOCK_PERCENT: "${SYS_DISK_BLOCK_PERCENT}",
+  },
+ },
+}

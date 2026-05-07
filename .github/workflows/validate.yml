@@ -1,0 +1,61 @@
+name: validate
+
+on: [push, pull_request]
+
+permissions:
+ contents: read
+
+jobs:
+ validate:
+  runs-on: ubuntu-latest
+  steps:
+   - uses: actions/checkout@v4
+
+   - name: Install dependencies
+    run: |
+     sudo apt-get update -qq
+     sudo apt-get install -y -qq shellcheck jq
+
+   - name: ShellCheck (scripts)
+    run: shellcheck -S warning scripts/*.sh
+
+   - name: Run validation
+    run: bash scripts/validate.sh
+
+ tests:
+  runs-on: ubuntu-latest
+  steps:
+   - uses: actions/checkout@v4
+   - name: Install Python tools
+    run: pip3 install pytest coverage
+   - name: Run tests with coverage
+    run: python3 -m coverage run -m pytest tests/ -v
+   - name: Coverage threshold
+    run: python3 -m coverage report
+
+ python_lint:
+  runs-on: ubuntu-latest
+  steps:
+   - uses: actions/checkout@v4
+   - name: Install Python tools
+    run: pip3 install ruff mypy
+   - name: ruff check
+    run: ruff check polis/ tests/
+   - name: ruff format
+    run: ruff format --check polis/ tests/
+   - name: mypy
+    run: mypy polis/eventbus.py polis/polis.py
+
+ makefile:
+  runs-on: ubuntu-latest
+  needs: validate
+  steps:
+   - uses: actions/checkout@v4
+   - name: Install dependencies
+    run: |
+     sudo apt-get update -qq
+     sudo apt-get install -y -qq jq
+   - name: make validate
+    run: make validate
+   - name: make lint
+    run: sudo apt-get install -y -qq shellcheck && make lint

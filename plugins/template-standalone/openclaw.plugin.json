@@ -1,0 +1,28 @@
+{
+ "id": "template-standalone",
+ "name": "Template Plugin Canonique",
+ "description": "Plugin outil + hook de sécurité. Sert de modèle pour tous les futurs plugins du projet.",
+ "contracts": {
+  "tools": ["secure_send_notification", "config_healthcheck"]
+ },
+ "activation": {
+  "onStartup": true
+ },
+ "configSchema": {
+  "type": "object",
+  "properties": {
+   "notification_channel": { "type": "string", "default": "telegram" }
+  },
+  "additionalProperties": false
+ },
+ "toolMetadata": {
+  "secure_send_notification": {
+   "description": "Envoie une notification via le canal configuré avec classification de sécurité",
+   "impact": "WRITE"
+  },
+  "config_healthcheck": {
+   "description": "Vérifie la cohérence de la configuration OpenClaw",
+   "impact": "READ"
+  }
+ }
+}

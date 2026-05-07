@@ -1,0 +1,41 @@
+# Secrets — jamais commités
+.env
+*.env
+.env.*
+!.env.example
+
+# Mémoire longue des agents — données personnelles, jamais versionnées
+memory/
+**/memory/
+
+# Logs
+*.log
+logs/
+
+# Configuration d'instance réelle (seuls les .example sont versionnés)
+openclaw.json
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Éditeurs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Claude Code — configuration locale, tokens, settings
+.claude/
+
+# Python (si scripts utilitaires)
+__pycache__/
+.pytest_cache/
+*.py[cod]
+.venv/
+venv/
+
+# Node (si scripts utilitaires)
+node_modules/

@@ -1,0 +1,70 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.backends._legacy:_Backend"
+
+[project]
+name = "polis"
+version = "0.2.0"
+description = "Architecture de référence OpenClaw — CLI de validation et bus d'événements"
+requires-python = ">=3.12"
+license = { text = "MIT" }
+
+[project.urls]
+Source = "https://github.com/mat214/Polis"
+
+[project.scripts]
+polis = "polis:main"
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=7",
+  "coverage>=7",
+  "ruff>=0.4",
+  "mypy>=1.8",
+]
+
+[tool.setuptools.packages.find]
+include = ["polis*"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "S", "SIM", "ISC", "PIE", "Q"]
+ignore = [
+  "E501", # line-length géré par ruff formatter
+  "SIM117", # allow nested with
+  "S101",  # allow assert in tests
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S101"]
+"polis/eventbus.py" = ["S608"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.mypy]
+python_version = "3.12"
+strict = false
+warn_unused_configs = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+warn_return_any = true
+disallow_untyped_defs = false
+disallow_any_unimported = false
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false
+
+[tool.coverage.run]
+source = ["polis", "tests"]
+omit = [".venv/*"]
+
+[tool.coverage.report]
+fail_under = 40
+show_missing = true

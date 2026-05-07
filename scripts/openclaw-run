@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# openclaw-run — Envoie un message à un agent OpenClaw depuis le terminal
+# Usage : openclaw-run <agent> <message>
+#   openclaw-run chercheur "quels sont tes projets en cours ?"
+#   openclaw-run défenseur "fais un audit rapide"
+#   openclaw-run leviathan "donne-moi la liste des agents sous surveillance"
+#   openclaw-run journaliste "produis la gazette du jour"
+set -euo pipefail
+
+if [ $# -lt 2 ]; then
+  echo "Usage: openclaw-run <agent> <message>"
+  echo ""
+  echo "Agents disponibles :"
+  echo "  intendant    — Assistant personnel (mail, agenda, Telegram)"
+  echo "  défenseur    — Infrastructure, audit, sécurité, maintenance"
+  echo "  bâtisseur    — Machine hôte, paquets, scripts, services"
+  echo "  chercheur    — Veille technologique, innovation"
+  echo "  leviathan    — Surveillance philosophique et architecturale"
+  echo "  journaliste  — Gazette quotidienne, investigation"
+  echo "  anarchiste   — Force critique, contestation"
+  exit 1
+fi
+
+AGENT="$1"
+shift
+MESSAGE="$*"
+
+exec openclaw agent --agent "$AGENT" --message "$MESSAGE"

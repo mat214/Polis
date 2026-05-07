@@ -1,0 +1,12 @@
+[run]
+source = polis
+omit = */test*, */__pycache__/*
+
+[report]
+fail_under = 40
+precision = 1
+exclude_lines =
+    pragma: no cover
+    def __repr__
+    raise AssertionError
+    raise NotImplementedError

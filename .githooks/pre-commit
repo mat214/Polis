@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+# Pre-commit hook — exécute les validations avant chaque commit.
+#
+# Installer avec : make hooks
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$ROOT_DIR"
+
+echo "=== Pre-commit : validation ==="
+errors=0
+
+# 1. Validation du dépôt (validate.sh)
+if bash scripts/validate.sh; then
+    echo "  ✓ validate.sh"
+else
+    echo "  ✗ validate.sh — corrige avant de commit"
+    ((errors++))
+fi
+
+# 2. Ruff
+if command -v ruff &>/dev/null; then
+    if ruff check polis/ tests/ && ruff format --check polis/ tests/; then
+        echo "  ✓ ruff"
+    else
+        echo "  ✗ ruff — lance 'make lint'"
+        ((errors++))
+    fi
+fi
+
+# 3. Mypy
+if command -v mypy &>/dev/null; then
+    if mypy polis/eventbus.py polis/polis.py; then
+        echo "  ✓ mypy"
+    else
+        echo "  ✗ mypy"
+        ((errors++))
+    fi
+fi
+
+if [ "$errors" -gt 0 ]; then
+    echo "=== $errors erreur(s) — commit bloqué ==="
+    exit 1
+fi
+
+echo "=== Pre-commit : OK ==="
