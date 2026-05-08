@@ -36,6 +36,7 @@ __pycache__/
 *.py[cod]
 .venv/
 venv/
+*.egg-info/
 
 # Node (si scripts utilitaires)
 node_modules/
