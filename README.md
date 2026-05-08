@@ -51,14 +51,28 @@ L'utilisateur est la raison d'être du système (Article 1). La constitution pr�
 | Agent | Rôle | Temp. | Canal |
 |---|---|---|---|
 | **intendant** | Assistant personnel : mail, agenda, contacts, tâches, Telegram | 0.4 | Telegram (défaut) |
-| **défenseur** | Infrastructure : audit, sécurité, sauvegardes, mises à jour | 0.1 | Heartbeat · `openclaw-run défenseur "..."` |
-| **bâtisseur** | Machine hôte : paquets, scripts, services, auto-provisioning | 0.1 | Heartbeat · `openclaw-run bâtisseur "..."` |
-| **chercheur** | Veille technologique, innovation, projets de recherche | 0.3 | Heartbeat · `openclaw-run chercheur "..."` |
-| **leviathan** | Surveillance philosophique et architecturale | 0.05 | Heartbeat · `openclaw-run leviathan "..."` |
-| **journaliste** | Transparence, gazette quotidienne, investigation | 0.2 | Heartbeat · `openclaw-run journaliste "..."` |
-| **anarchiste** | Force critique, contestation, motion, mise à l'épreuve | 0.15 | Heartbeat · `openclaw-run anarchiste "..."` |
+| **défenseur** | Infrastructure : audit, sécurité, sauvegardes, mises à jour | 0.1 | Heartbeat · `talk défenseur` |
+| **bâtisseur** | Machine hôte : paquets, scripts, services, auto-provisioning | 0.1 | Heartbeat · `talk bâtisseur` |
+| **chercheur** | Veille technologique, innovation, projets de recherche | 0.3 | Heartbeat · `talk chercheur` |
+| **leviathan** | Surveillance philosophique et architecturale | 0.05 | Heartbeat · `talk leviathan` |
+| **journaliste** | Transparence, gazette quotidienne, investigation | 0.2 | Heartbeat · `talk journaliste` |
+| **anarchiste** | Force critique, contestation, motion, mise à l'épreuve | 0.15 | Heartbeat · `talk anarchiste` |
 
-> **Heartbeat** : l'agent s'exécute sur un timer et n'écoute pas en continu. Pour lui parler directement depuis le terminal : `openclaw-run <agent> "<message>"` (nécessite `openclaw` et le Gateway actif).
+> **Heartbeat** : l'agent s'exécute sur un timer et n'écoute pas en continu. Pour lui parler directement depuis le terminal : `talk <agent> "<message>"` (script fourni dans `scripts/talk`, nécessite `openclaw` et le Gateway actif).
+
+### Script `talk`
+
+Le projet fournit un utilitaire de conversation interactive avec les agents OpenClaw :
+
+```bash
+scripts/talk                    # session avec l'intendant (défaut)
+scripts/talk bâtisseur          # session avec le bâtisseur
+scripts/talk défenseur "message"  # message direct puis session interactive
+```
+
+Installation dans le PATH : `cp scripts/talk ~/.local/bin/` (nécessite `~/.local/bin` dans le PATH).
+
+### Polis CLI
 
 ## Prérequis
 
@@ -173,7 +187,20 @@ Trois workflows GitHub Actions s'exécutent automatiquement sur chaque push :
 - **validate** : ShellCheck + validation complète du dépôt + tests + lint + type checking
 - **security** : Gitleaks (scan de secrets)
 
+## Premier déploiement — enseignements
+
+Cette architecture de référence a été déployée pour la première fois sur un VPS Debian. Voici les points d'attention identifiés :
+
+- **Profil d'outils** : le profil `messaging` de l'exemple ne suffit pas — les agents nécessitent les groupes `fs`, `runtime`, `sessions`, `exec`. Adopter `profile: "coding"` avec `tools.allow` explicite.
+- **Exécution système** : l'accès shell passe par `exec.host: "gateway"` + `sudo` via sudoers (`NOPASSWD`). La clé `sudo` dans `tools.allow` n'existe pas.
+- **Accents dans les IDs** : les IDs d'agents avec accents (`bâtisseur`, `défenseur`) sont normalisés par OpenClaw en `b-tisseur`, `d-fenseur` au niveau fichier. Le CLI OpenClaw n'accepte que l'ID exact. Le script `talk` compense par une recherche floue.
+- **Skills lazy** : les skills sont chargés au premier appel d'un agent, pas au démarrage. `shared-notion-openclaw` nécessite `NOTION_DB_OPENCLAW_ID` renseigné.
+- **Cron** : les jobs cron se créent via `openclaw cron add`, pas dans `openclaw.json`. Voir [`DESCRIPTION.md`](./DESCRIPTION.md#tâches-planifiées-cron) pour les commandes.
+- **Transport Git** : utiliser un PAT classique (classic token) avec scope `repo` pour le push.
+
 ---
+
+
 
 > Dépôt : https://github.com/mat214/Polis
 > Projet : Polis — architecture de référence OpenClaw

@@ -4,6 +4,29 @@ Ce fichier retrace l'historique des modifications du dépôt, reconstruit à par
 
 ---
 
+## [2026-05-08] — Première mise en production : déploiement réel, audits et corrections
+
+### Première mise en production réelle de l'instance OpenClaw Polis.
+Cette session a couvert le déploiement effectif sur VPS, les corrections nécessaires, et la documentation des apprentissages.
+
+### Ajouté
+- **`scripts/talk`** : utilitaire conversationnel pour ouvrir une session interactive avec n'importe quel agent OpenClaw depuis le terminal. Supporte la recherche floue des noms d'agents (accents, tirets). Usage : `talk bâtisseur`, `talk defenseur`, `talk` (intendant par défaut).
+- **`.gitignore`** : règle `*.egg-info/` pour exclure les artefacts de build setuptools.
+
+### Corrigé
+- **`polis/setup.py`** : import corrigé de `setuptools` (`from setuptools import find_packages, setup`) avec `packages=find_packages()` pour inclure automatiquement le package `polis` et ses sous-modules.
+- **`pyproject.toml`** : `build-backend` corrigé de `setuptools.backends._legacy:_Backend` (inexistant) vers `setuptools.build_meta` (officiel).
+
+### Apprentissages (déploiement réel)
+- **Profil d'outils** : le profil `messaging` est trop restrictif pour un usage réel. Les agents ont besoin des groupes `fs`, `runtime`, `sessions`, `exec`. Passage en `coding` avec `tools.allow` explicite.
+- **Exécution shell** : la clé `sudo` dans `tools.allow` n'existe pas. L'accès root passe par `exec.host: "gateway"` avec `security: "full"` et `sudo` configuré via sudoers (`NOPASSWD`).
+- **Parsing des noms d'agents** : les accents (bâtisseur, défenseur) causent des erreurs silencieuses en CLI. Le script `talk` compense par une normalisation Unicode.
+- **Skills lazy** : les skills OpenClaw sont chargés au premier appel d'un agent, pas au démarrage du gateway. `shared-notion-openclaw` nécessite `NOTION_DB_OPENCLAW_ID` renseigné dans `.env`.
+- **Cron** : les jobs cron ne se définissent pas dans `openclaw.json` mais via la CLI `openclaw cron add`. Deux jobs créés : brief-matin (07:30) et brief-soir (19:00).
+- **Transport des tokens** : le push Git nécessite un PAT classique (les fine-grained PAT nécessitent une autorisation explicite du dépôt).
+
+---
+
 ## [2026-05-07] — Nettoyage tests et synchronisation documentation
 
 ### Corrigé

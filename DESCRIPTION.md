@@ -1,7 +1,7 @@
 # Description — Polis (OpenClaw, Matpe)
 
 > Documentation complète du fonctionnement, de la structure et des règles de l'instance OpenClaw de l'utilisateur.
-> Dernière mise à jour : 2026-05-07 (FEEDBACK, SKILL-PIPE, validation technique)
+> Dernière mise à jour : 2026-05-08 (déploiement réel, scripts, lessons learned)
 
 ---
 
@@ -93,10 +93,11 @@ Polis/
 │    ├── ratelimit.py         # Rate limiting SQLite
 │    └── sanitize.py         # Détection prompt injection
 │
-├── scripts/               # Scripts de validation et déploiement
+├── scripts/               # Scripts de validation, déploiement et interactions
 
 │  ├── validate.sh           # Validation de cohérence du dépôt (10 catégories)
-│  └── install.sh            # Déploiement automatisé vers ~/.openclaw/
+│  ├── install.sh            # Déploiement automatisé vers ~/.openclaw/
+│  └── talk                  # Conversation interactive avec n'importe quel agent
 │
 ├── skills/               # Skills PARTAGÉS entre tous les agents
 │  ├── shared-governance/       # Gouvernance, niveaux, conventions
@@ -1090,6 +1091,22 @@ Instructions : `stop`, `freeze`, `rollback`. Persistant entre sessions (KILL-3).
 
 Telegram est le canal principal de `intendant`. Seul le `$TELEGRAM_CHAT_ID` configuré est accepté — tout autre message est ignoré sans réponse.
 
+### Script `talk` — conversation interactive avec les agents
+
+En complément du canal Telegram et du TUI, le projet fournit un script utilitaire `scripts/talk` pour dialoguer avec n'importe quel agent directement depuis le terminal :
+
+```bash
+# Session interactive
+talk bâtisseur                    # avec le bâtisseur
+talk chercheur "Que cherches-tu ?" # message initial + session
+talk                              # intendant (défaut)
+
+# Message unique (session maintenue)
+openclaw agent --agent bâtisseur -m "statut du système"
+```
+
+Le script gère la recherche floue des noms d'agents : `talk batisseur`, `talk defenseur`, `talk chercheur` fonctionnent sans accent. Les sessions sont automatiquement maintenues par le gateway pour assurer la continuité contextuelle.
+
 ### Canal de secours : openclaw-tui
 
 En cas d'indisponibilité Telegram confirmée (3 échecs consécutifs d'envoi) :
@@ -1559,5 +1576,65 @@ Le CLI est en cours de développement. Contributions bienvenues.
 
 ---
 
+## Enseignements du premier déploiement
+
+Cette section documente les ajustements nécessaires lors du déploiement réel de l'architecture de référence sur VPS Debian.
+
+### Configuration des outils
+
+Le profil `messaging` de l'exemple `openclaw.json.example` est insuffisant en production. Les agents nécessitent :
+
+| Profil | Groups disponibles | Usage |
+|---|---|---|
+| `messaging` | `group:messaging`, `group:web` | Trop restrictif — lecture seule |
+| `coding` | `group:fs`, `group:runtime` | Minimum viable pour les agents opérationnels |
+| Ajouts manuels | `group:sessions`, `exec`, `cron` | Indispensables pour les tâches planifiées et l'interaction |
+
+**Configuration réelle appliquée** :
+```json5
+tools: {
+ profile: "coding",
+ allow: [
+  "group:fs", "group:runtime", "group:sessions",
+  "group:memory", "group:web", "group:messaging",
+  "cron", "exec"
+ ],
+ exec: { host: "gateway", security: "full", ask: "off", timeoutSec: 600 },
+ elevated: { enabled: true },
+}
+```
+
+### Exécution shell
+
+L'accès `sudo` ne se configure pas dans `tools.allow` (clé inexistante). Le bon mécanisme :
+1. `tools.exec.host: "gateway"` — l'exécution transite par le gateway
+2. `tools.exec.security: "full"` — pas de sandboxing
+3. `tools.exec.ask: "off"` — pas de confirmation par le gateway (gérée par les agents)
+4. Configuration sudoers : `polis ALL=(ALL) NOPASSWD: ALL`
+
+### Parsing des noms d'agents
+
+Les IDs avec accents (`bâtisseur`, `défenseur`) sont stockés en interne par OpenClaw sous forme normalisée (`b-tisseur`, `d-fenseur`). Le CLI `openclaw agent --agent` n'accepte que l'ID exact. Le script `talk` intégré (`scripts/talk`) compense par une recherche floue (normalisation Unicode, matching par préfixe, correspondance identityName).
+
+### Cycle de vie des skills
+
+Les skills sont chargés paresseusement au premier appel d'un agent, pas au démarrage du gateway. Le skill `shared-notion-openclaw` nécessite que la variable `NOTION_DB_OPENCLAW_ID` soit renseignée dans `.env` pour être disponible.
+
+### Jobs cron
+
+Les jobs cron ne se définissent pas dans `openclaw.json` (la section `cron` ne configure que le comportement global du planificateur). La création passe par la CLI :
+```bash
+openclaw cron add --name "brief-matin" --cron "30 7 * * *" --agent intendant --message "/brief"
+```
+
+### Transport Git
+
+Le push vers GitHub avec un dépôt configuré en HTTPS nécessite soit :
+- Un PAT classique (classic token) avec scope `repo`, utilisé comme mot de passe
+- `gh` CLI avec `gh auth login`
+- Une clé SSH configurée dans GitHub
+
+---
+
 > Document maintenu à jour après chaque évolution significative de l'instance.
-> Dernière mise à jour : 2026-05-07 (Guardrail interceptor + audit de cohérence)
+> Dernière mise à jour : 2026-05-08 (déploiement réel, scripts, lessons learned)
