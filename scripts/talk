@@ -1,0 +1,102 @@
+#!/bin/bash
+# talk — conversation interactive avec n'importe quel agent OpenClaw
+# Usage: talk [agent] [message initial]
+
+if [[ "$1" =~ ^(--help|-h|/help)$ ]]; then
+  echo "Usage: talk [agent] [message initial]"
+  echo "Agent par défaut : intendant"
+  echo "Exemples :"
+  echo "  talk bâtisseur"
+  echo "  talk chercheur \"que sais-tu sur X ?\""
+  exit 0
+fi
+
+AGENTS_JSON=$(openclaw agents list --json 2>/dev/null)
+
+# Résoudre un nom d'agent (fuzzy match) → imprime "id|display" ou rien
+resolve_agent() {
+  local candidate="$1"
+  echo "$AGENTS_JSON" | python3 -c "
+import json, sys
+data = json.load(sys.stdin)
+agents = data if isinstance(data, list) else data.get('agents', [])
+target = '$candidate'.lower()
+
+accent_map = [
+    ('é','e'), ('è','e'), ('ê','e'),
+    ('â','a'), ('à','a'),
+    ('î','i'), ('ô','o'),
+    ('ù','u'), ('û','u'),
+    ('ç','c'), ('-','')
+]
+
+def norm(s):
+    s = s.lower()
+    for a, b in accent_map:
+        s = s.replace(a, b)
+    return s
+
+for a in agents:
+    for name in [a.get('id',''), a.get('identityName','')]:
+        if not name:
+            continue
+        n = norm(name)
+        if name == target or n == target or n.startswith(target) or target.startswith(n):
+            aid = a['id']
+            disp = a.get('identityName','') or aid
+            print(f'{aid}|{disp}')
+            sys.exit(0)
+print('')
+"
+}
+
+# Déterminer si le premier argument est un agent ou un message direct
+if [ $# -ge 1 ]; then
+  RESULT=$(resolve_agent "$1")
+  if [ -n "$RESULT" ]; then
+    AGENT_QUERY="$1"
+    shift
+  else
+    AGENT_QUERY="intendant"
+  fi
+else
+  AGENT_QUERY="intendant"
+fi
+
+FIRST_MSG="$*"
+
+# Résolution finale de l'agent
+RESOLVED=$(resolve_agent "$AGENT_QUERY")
+if [ -z "$RESOLVED" ]; then
+  echo "Erreur : agent « $AGENT_QUERY » introuvable."
+  echo "Agents disponibles :"
+  echo "$AGENTS_JSON" | python3 -c 'import json,sys; [print("  - "+a["id"]) for a in json.load(sys.stdin)]'
+  exit 1
+fi
+
+AGENT_ID="${RESOLVED%%|*}"
+AGENT_DISPLAY="${RESOLVED##*|}"
+
+echo "--- Conversation avec « $AGENT_DISPLAY » ---"
+echo "    Ctrl+C ou /quit pour quitter"
+echo ""
+
+send_msg() {
+  openclaw agent --agent "$AGENT_ID" -m "$1" 2>&1
+}
+
+if [ -n "$FIRST_MSG" ]; then
+  echo "> $FIRST_MSG"
+  send_msg "$FIRST_MSG"
+  echo ""
+fi
+
+while true; do
+  echo -n "> "
+  read -r msg
+  [ -z "$msg" ] && continue
+  [[ "$msg" == "/quit" || "$msg" == "/exit" ]] && break
+  send_msg "$msg"
+  echo ""
+done
+echo "--- Fin ---"
